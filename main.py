@@ -7,26 +7,18 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 app = FastAPI()
 
 print("Memuat Tokenizer dan 2 Model ke Memori...")
-
-# 1. Load Tokenizer & Model dari folder lokal hasil test run
 tokenizer = AutoTokenizer.from_pretrained("./model_sentimen_saved")
 model_sentiment = AutoModelForSequenceClassification.from_pretrained("./model_sentimen_saved")
 model_emotion = AutoModelForSequenceClassification.from_pretrained("./model_emosi_saved")
-
 print("Model Siap Melayani Request!")
 
-# ==========================================
-# MAPPING LABEL KE BAHASA BISNIS / SELLER
-# ==========================================
 map_sent_reverse = {0: "negative", 1: "positive"}
-
-# Translasi dari label asli dataset (Happy, Sad, dll) ke bahasa e-commerce
 map_emo_business = {
-    0: "Puas",                # Asal: Happy
-    1: "Kecewa / Menyesal",   # Asal: Sadness
-    2: "Was-was / Khawatir",  # Asal: Fear
-    3: "Sangat Puas / Loyal", # Asal: Love
-    4: "Frustrasi / Komplain" # Asal: Anger
+    0: "Puas", 
+    1: "Kecewa / Menyesal", 
+    2: "Was-was / Khawatir", 
+    3: "Sangat Puas / Loyal", 
+    4: "Frustrasi / Komplain"
 }
 
 class ReviewInput(BaseModel):
@@ -39,16 +31,13 @@ class BatchRequest(BaseModel):
 @app.post("/predict-batch")
 def predict_batch(payload: BatchRequest):
     texts = [r.text for r in payload.reviews]
-
-    # Tokenisasi sekaligus (Batch)
     inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=128)
-
     results = []
     
     with torch.no_grad():
-        # Prediksi Sentimen
+        # Prediksi Sentimen pakai Softmax buat dapet probabilitas asli
         out_sent = model_sentiment(**inputs)
-        probs_sent = torch.nn.functional.softmax(out_sent.logits, dim=-1) # Hitung persentase asli
+        probs_sent = torch.nn.functional.softmax(out_sent.logits, dim=-1)
         preds_sent = torch.argmax(probs_sent, dim=-1).tolist()
         
         # Prediksi Emosi
@@ -57,14 +46,21 @@ def predict_batch(payload: BatchRequest):
 
     # PROSES JAHIT HASILNYA
     for i, r in enumerate(payload.reviews):
-        # Ambil nilai probabilitas tertinggi sebagai confidence score
-        conf_score = round(probs_sent[i][preds_sent[i]].item(), 2) 
+        # Ambil angka confidence dari kelas yang menang
+        conf_score = round(probs_sent[i][preds_sent[i]].item(), 2)
+        
+        # LOGIC MIXED SENTIMENT (Opsi 2 yang kita sepakati)
+        # Jika AI yakinnya di bawah 75%, kita tandain ini sebagai ulasan abu-abu
+        is_mixed_flag = False
+        if conf_score < 0.75:
+            is_mixed_flag = True
 
         results.append({
             "id": r.id,
             "sentiment": map_sent_reverse.get(preds_sent[i], "unknown"),
             "emotion": map_emo_business.get(preds_emo[i], "unknown"),
-            "confidence": conf_score # Sekarang angkanya ASLI dari otak AI!
+            "confidence": conf_score,
+            "is_mixed": is_mixed_flag # Fitur baru buat ditangkap UI!
         })
 
     return {"results": results}
