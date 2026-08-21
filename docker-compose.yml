@@ -1,0 +1,42 @@
+services:
+  # 1. Service Database MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: ulasjujur-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: ulasjujur_db
+    ports:
+      - "3307:3306" # (atau 3307:3306 jika sebelumnya kamu menggunakan opsi 1)
+    volumes:
+      - ./mysql-init/init_kamus.sql:/docker-entrypoint-initdb.d/init_kamus.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      timeout: 10s
+      retries: 5
+
+  # 2. Service AI Model (Python)
+  python-model-service:
+    build:
+      context: ./python-model-service
+      dockerfile: Dockerfile
+    container_name: ulasjujur-python
+    ports:
+      - "5000:5000"
+
+  # 3. Service Backend (Golang)
+  golang-api:
+    build:
+      context: ./golang-api
+      dockerfile: Dockerfile
+    container_name: ulasjujur-golang
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      python-model-service:
+        condition: service_started # Golang butuh Python menyala lebih dulu
+    environment:
+      - DB_DSN=root:password@tcp(mysql:3306)/ulasjujur_db
+      - PYTHON_API_URL=http://python-model-service:5000/predict-batch

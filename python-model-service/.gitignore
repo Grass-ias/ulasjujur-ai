@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.csv
+model_sentimen_saved/
+model_emosi_saved/
