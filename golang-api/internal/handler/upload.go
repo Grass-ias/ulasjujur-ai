@@ -71,10 +71,10 @@ func UploadCSVHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		rowNumber++
 
-		if rowNumber > MaxRows+1 {
-			http.Error(w, fmt.Sprintf("File melebihi batas maksimal %d baris", MaxRows), http.StatusBadRequest)
-			return
-		}
+		// if rowNumber > MaxRows+1 {
+		// 	http.Error(w, fmt.Sprintf("File melebihi batas maksimal %d baris", MaxRows), http.StatusBadRequest)
+		// 	return
+		// }
 
 		reviewText := strings.TrimSpace(record[reviewIdx])
 		ratingStr := strings.TrimSpace(record[ratingIdx])

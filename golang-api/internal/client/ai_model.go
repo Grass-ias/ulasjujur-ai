@@ -56,7 +56,7 @@ func PredictBatch(reviews []string) ([]AIModelResponseItem, error) {
 		return nil, fmt.Errorf("gagal melakukan encode batch request: %v", err)
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("gagal memanggil Python service: %v", err)
