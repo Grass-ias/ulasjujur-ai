@@ -102,27 +102,41 @@ func UploadCSVHandler(w http.ResponseWriter, r *http.Request) {
 
 	// ... (Kode CSV di atasnya tetap sama)
 
-	// 1. Lakukan Batch Call ke Python Model
-	aiResponses, err := client.PredictBatch(batchReviews)
-	if err != nil {
-		fmt.Printf("Warning: Gagal akses Python, menggunakan Mock Data AI. Error: %v\n", err)
-		for i := 0; i < len(batchReviews); i++ {
-			mockSentiment := "positive" // Format Python huruf kecil[cite: 2]
-			if i%3 == 0 { 
-				mockSentiment = "negative"
-			}
-			// Menyesuaikan dengan Struct AIModelResponseItem yang baru
-			aiResponses = append(aiResponses, client.AIModelResponseItem{
-				ID:         i + 1,
-				Sentiment:  mockSentiment,
-				Emotion:    "Puas", // Menggunakan format kembalian emosi dari Python[cite: 2]
-				Confidence: 0.85,
-				IsMixed:    false,
-			})
+	// 1. Lakukan Batch Call ke Python Model secara Chunking (Potongan Kecil)
+	var aiResponses []client.AIModelResponseItem
+	chunkSize := 100 // Python hanya akan memproses 100 baris per request
+
+	for i := 0; i < len(batchReviews); i += chunkSize {
+		end := i + chunkSize
+		if end > len(batchReviews) {
+			end = len(batchReviews)
 		}
+
+		chunk := batchReviews[i:end]
+		
+		// Panggil Python untuk potongan ini
+		chunkResponses, err := client.PredictBatch(chunk)
+		if err != nil {
+			fmt.Printf("Warning: Gagal akses Python pada chunk %d-%d. Error: %v\n", i, end, err)
+			// Mock data fallback khusus untuk chunk yang gagal
+			for j := 0; j < len(chunk); j++ {
+				aiResponses = append(aiResponses, client.AIModelResponseItem{
+					ID:         i + j + 1,
+					Sentiment:  "negative",
+					Emotion:    "Kecewa / Menyesal",
+					Confidence: 0.85,
+					IsMixed:    false,
+				})
+			}
+			continue 
+		}
+
+		// Gabungkan hasil dari Python ke array utama
+		aiResponses = append(aiResponses, chunkResponses...)
+		fmt.Printf("Berhasil memproses baris %d sampai %d\n", i, end)
 	}
 
-	// 2. Jalankan Anomaly Logic & Agregasi
+	// 2. Jalankan Anomaly Logic & Agregasi (Kode di bawah ini tetap sama seperti sebelumnya)
 	analysisResult := service.AnalyzeData(parsedData, aiResponses)
 
 	// 3. Susun Response Contract Final
