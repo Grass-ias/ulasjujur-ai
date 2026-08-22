@@ -13,7 +13,7 @@ import (
 	"ulasjujur-api/internal/service"
 )
 
-const MaxRows = 100
+const MaxRows = 100000
 
 func UploadCSVHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -125,7 +125,6 @@ func UploadCSVHandler(w http.ResponseWriter, r *http.Request) {
 					Sentiment:  "negative",
 					Emotion:    "Kecewa / Menyesal",
 					Confidence: 0.85,
-					IsMixed:    false,
 				})
 			}
 			continue 

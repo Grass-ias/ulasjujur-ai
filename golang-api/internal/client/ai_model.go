@@ -25,7 +25,6 @@ type AIModelResponseItem struct {
 	Sentiment  string  `json:"sentiment"`
 	Emotion    string  `json:"emotion"`
 	Confidence float64 `json:"confidence"`
-	IsMixed    bool    `json:"is_mixed"`
 }
 
 type AIModelBatchResponse struct {

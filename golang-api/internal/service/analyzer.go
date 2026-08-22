@@ -35,30 +35,33 @@ func AnalyzeData(rows []model.ReviewRow, aiResults []client.AIModelResponseItem)
 		// 2. Agregasi Emosi Dominan
 		emotionCounts[aiRes.Emotion]++
 
-		// 3. ANOMALY LOGIC (Mismatch Detection)
-		if (row.CustomerRating >= 4) && strings.EqualFold(aiRes.Sentiment, "negative") {
-			mismatches = append(mismatches, model.MismatchExample{
-				RowNumber:         row.RowNumber,
-				CustomerRating:    row.CustomerRating,
-				CustomerReview:    row.CustomerReview,
-				AISentiment:       aiRes.Sentiment,
-				AIDominantEmotion: aiRes.Emotion, // Diubah menjadi Emotion
-			})
-		}
+		// 3 & 4. KEYWORD INTEGRATION & ANOMALY DETECTION
+        lowerReview := strings.ToLower(row.CustomerReview)
+        foundIssue := false
 
-		// 4. KEYWORD INTEGRATION
-		// Jika sentimen Negative, cocokkan teks ulasan dengan tabel kamus
-		if strings.EqualFold(aiRes.Sentiment, "negative") {
-			lowerReview := strings.ToLower(row.CustomerReview)
-			
-			// Lakukan iterasi pada Map cache yang baru
-			for keyword, category := range repository.IssueKeywordsCache {
-				if strings.Contains(lowerReview, keyword) {
-					// Yang dihitung sekarang adalah Kategori utamanya
-					issueCounts[category]++
-				}
-			}
-		}
+        // Scan semua keyword di ulasan tanpa mempedulikan sentimen awal AI
+        for keyword, category := range repository.IssueKeywordsCache {
+            if strings.Contains(lowerReview, keyword) {
+                foundIssue = true
+                // Tambahkan hitungan metrik masalah kalau sentimen aslinya memang negatif
+                if strings.EqualFold(aiRes.Sentiment, "negative") {
+                    issueCounts[category]++
+                }
+            }
+        }
+
+        // LOGIKA ANOMALI BARU (MIXED SENTIMENT):
+        // Jika pelanggan kasih rating bagus (>=4) ATAU AI nebaknya "Positive",
+        // TAPI sistem kamus nemuin kata keluhan (foundIssue == true) itu berarti Mixed Sentiment
+        if (row.CustomerRating >= 4 || strings.EqualFold(aiRes.Sentiment, "positive")) && foundIssue {
+            mismatches = append(mismatches, model.MismatchExample{
+                RowNumber:         row.RowNumber,
+                CustomerRating:    row.CustomerRating,
+                CustomerReview:    row.CustomerReview,
+                AISentiment:       aiRes.Sentiment,
+                AIDominantEmotion: aiRes.Emotion,
+            })
+        }
 	}
 
 	topIssues := make([]model.Issue, 0)

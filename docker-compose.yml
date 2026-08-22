@@ -39,4 +39,4 @@ services:
         condition: service_started # Golang butuh Python menyala lebih dulu
     environment:
       - DB_DSN=root:password@tcp(mysql:3306)/ulasjujur_db
-      - PYTHON_API_URL=http://python-model-service:5000/predict-batch
+      - PYTHON_API_URL=http://ulasjujur-python:5000/predict-batch
